@@ -36,7 +36,7 @@ from templatey import DynamicClassSlot
 from templatey import Slot
 from templatey import Var
 from templatey import template
-from templatey._types import TemplateParamsInstance
+from templatey._types import TemplateClassInstance
 from templatey.prebaked.template_configs import html
 from templatey.templates import FieldConfig
 from templatey.templates import template_field
@@ -721,10 +721,10 @@ def _apply_plugins[T: ASTNode](
         doc_coll: HtmlDocumentCollection,
         node_type: type[T],
         node: T
-        ) -> tuple[list[HtmlAttr], list[TemplateParamsInstance]]:
+        ) -> tuple[list[HtmlAttr], list[TemplateClassInstance]]:
     plugins = doc_coll.plugin_manager.get_clc_plugins(node_type)
     plugin_attrs: list[HtmlAttr] = []
-    plugin_widgets: list[TemplateParamsInstance] = []
+    plugin_widgets: list[TemplateClassInstance] = []
 
     for plugin in plugins:
         injection = plugin(node)

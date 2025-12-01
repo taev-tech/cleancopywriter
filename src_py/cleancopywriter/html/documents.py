@@ -26,7 +26,7 @@ from cleancopy.ast import RichtextBlockNode
 from cleancopy.ast import RichtextInlineNode
 from docnote import Note
 from docnote_extract import SummaryTreeNode
-from templatey._types import TemplateParamsInstance
+from templatey._types import TemplateClassInstance
 from templatey.environments import RenderEnvironment
 from templatey.prebaked.loaders import InlineStringTemplateLoader
 
@@ -42,7 +42,7 @@ from cleancopywriter.html.templatifiers.docnotes import ModuleSummaryTemplate
 
 @dataclass(slots=True)
 class HtmlDocument[TI: DocumentID, TS](
-        DocumentBase[TI, TS, TemplateParamsInstance]):
+        DocumentBase[TI, TS, TemplateClassInstance]):
     """This is used as a base class for all supported html document
     types.
     """
@@ -110,8 +110,8 @@ class HtmlDocumentCollection[T: DocumentID, TC](Mapping[T, HtmlDocument]):
 
     def preprocess(
             self,
-            *,
             clc_text: bytes | str,
+            *,
             context: TC | None = None
             ) -> ClcDocument:
         """Applies any cleancopy tree transformers and returns the

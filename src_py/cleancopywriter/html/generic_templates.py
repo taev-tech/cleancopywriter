@@ -11,7 +11,7 @@ from templatey import DynamicClassSlot
 from templatey import Slot
 from templatey import Var
 from templatey import template
-from templatey._types import TemplateParamsInstance
+from templatey._types import TemplateClassInstance
 from templatey.prebaked.loaders import InlineStringTemplateLoader
 from templatey.prebaked.template_configs import html
 
@@ -45,7 +45,7 @@ class PlaintextTemplate:
 
 
 def link_factory(
-        body: Sequence[TemplateParamsInstance],
+        body: Sequence[TemplateClassInstance],
         href: str,
         ) -> HtmlGenericElement:
     return HtmlGenericElement(
@@ -56,7 +56,7 @@ def link_factory(
 
 def heading_factory(
         depth: Annotated[int, Note('Note: zero-indexed!')],
-        body: Sequence[TemplateParamsInstance]
+        body: Sequence[TemplateClassInstance]
         ) -> HtmlGenericElement:
     """Beyond what you'd expect, this:
     ++  converts a zero-indexed depth to a 1-indexed heading
