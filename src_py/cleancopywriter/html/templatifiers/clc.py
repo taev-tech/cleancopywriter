@@ -248,7 +248,7 @@ class ClcRichtextBlocknodeTemplate:
 
     nodeinfo: Content[BlockNodeInfo | None] = ext_field(FieldConfig(
         transformer=_transform_spec_metadatas_block))
-    role_if_root: Content[bool] = template_field(FieldConfig(
+    role_if_root: Content[bool] = ext_field(FieldConfig(
         transformer=_transform_block_role))
 
     @classmethod
