@@ -4,28 +4,26 @@ from collections.abc import Sequence
 from dataclasses import field
 from typing import Annotated
 
-from docnote import DocnoteConfig
+from dcei import ext_dataclass
 from docnote import Note
 from templatey import Content
 from templatey import DynamicClassSlot
 from templatey import Slot
+from templatey import TemplateClassInstance
+from templatey import TemplateResourceConfig
 from templatey import Var
-from templatey import template
-from templatey._types import TemplateClassInstance
-from templatey.prebaked.loaders import InlineStringTemplateLoader
-from templatey.prebaked.template_configs import html
+from templatey.prebaked.configs import html
+from templatey.prebaked.loaders import INLINE_TEMPLATE_LOADER
 
-TEMPLATE_LOADER: Annotated[
-        InlineStringTemplateLoader,
-        DocnoteConfig(include_in_docs=False)
-    ] = InlineStringTemplateLoader()
 type HtmlTemplate = HtmlGenericElement | PlaintextTemplate
 
 
-@template(
+@ext_dataclass(
     html,
-    '<{content.tag}{slot.attrs: __prefix__=" "}>{slot.body}</{content.tag}>',
-    loader=TEMPLATE_LOADER,
+    TemplateResourceConfig(
+        '<{content.tag}{slot.attrs: __prefix__=" "}>{slot.body}'
+        + '</{content.tag}>',
+        loader=INLINE_TEMPLATE_LOADER),
     kw_only=True)
 class HtmlGenericElement:
     tag: Content[str]
@@ -33,13 +31,18 @@ class HtmlGenericElement:
     body: DynamicClassSlot
 
 
-@template(html, '{content.key}="{var.value}"', loader=TEMPLATE_LOADER)
+@ext_dataclass(
+    html,
+    TemplateResourceConfig(
+        '{content.key}="{var.value}"', loader=INLINE_TEMPLATE_LOADER))
 class HtmlAttr:
     key: Content[str]
     value: Var[str]
 
 
-@template(html, '{var.text}', loader=TEMPLATE_LOADER)
+@ext_dataclass(
+    html,
+    TemplateResourceConfig('{var.text}', loader=INLINE_TEMPLATE_LOADER))
 class PlaintextTemplate:
     text: Var[str]
 

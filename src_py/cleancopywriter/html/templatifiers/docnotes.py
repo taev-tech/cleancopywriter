@@ -11,6 +11,8 @@ from typing import Self
 from typing import overload
 
 from cleancopy.spectypes import InlineFormatting
+from dcei import ext_dataclass
+from dcei import ext_field
 from docnote import MarkupLang
 from docnote_extract.crossrefs import CallTraversal
 from docnote_extract.crossrefs import Crossref
@@ -43,14 +45,13 @@ from docnote_extract.summaries import VariableSummary
 from templatey import Content
 from templatey import DynamicClassSlot
 from templatey import Slot
+from templatey import TemplateResourceConfig
 from templatey import Var
-from templatey import template
 from templatey._types import TemplateClassInstance
-from templatey.prebaked.template_configs import html
+from templatey.prebaked.configs import html
+from templatey.prebaked.loaders import INLINE_TEMPLATE_LOADER
 from templatey.templates import FieldConfig
-from templatey.templates import template_field
 
-from cleancopywriter.html.generic_templates import TEMPLATE_LOADER
 from cleancopywriter.html.generic_templates import HtmlAttr
 from cleancopywriter.html.generic_templates import HtmlGenericElement
 from cleancopywriter.html.generic_templates import HtmlTemplate
@@ -63,16 +64,18 @@ if typing.TYPE_CHECKING:
     from cleancopywriter.html.documents import HtmlDocumentCollection
 
 
-@template(
+@ext_dataclass(
     html,
-    # Note: we're not doing a role of list here, because the child elements
-    # may or may not be list items (because they can also be used outside of
-    # a literal) and therefore there's no way to distinguish between them
-    dedent('''\
-        <docnote-fallback-container>
-            {slot.wraps}
-        </docnote-fallback-container>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        # Note: we're not doing a role of list here, because the child elements
+        # may or may not be list items (because they can also be used outside
+        # of a literal) and therefore there's no way to distinguish between
+        # them
+        dedent('''\
+            <docnote-fallback-container>
+                {slot.wraps}
+            </docnote-fallback-container>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class FallbackContainerTemplate:
     """Fallback templates are used for docnote things we haven't fully
     implemented yet, where we want to wrap a generic HTML element in
@@ -81,26 +84,27 @@ class FallbackContainerTemplate:
     wraps: Slot[HtmlGenericElement]
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-module role="article" {slot.plugin_attrs}>
-            <docnote-header>
-                <docnote-name obj-type="module" role="heading" aria-level="1">
-                    {var.fullname}
-                </docnote-name>
-                <docnote-docstring obj-type="module">
-                    {slot.docstring}
-                </docnote-docstring>
-                <docnote-module-dunderall role="list">
-                    {slot.dunder_all}
-                </docnote-module-dunderall>
-            </docnote-header>
-            {slot.members}
-            <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
-        </docnote-module>
-        '''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-module role="article" {slot.plugin_attrs}>
+                <docnote-header>
+                    <docnote-name obj-type="module" role="heading" aria-level="1">
+                        {var.fullname}
+                    </docnote-name>
+                    <docnote-docstring obj-type="module">
+                        {slot.docstring}
+                    </docnote-docstring>
+                    <docnote-module-dunderall role="list">
+                        {slot.dunder_all}
+                    </docnote-module-dunderall>
+                </docnote-header>
+                {slot.members}
+                <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
+            </docnote-module>
+            '''),  # noqa: E501
+        loader=INLINE_TEMPLATE_LOADER))
 class ModuleSummaryTemplate:
     fullname: Var[str]
     docstring: Slot[HtmlTemplate | ClcRichtextBlocknodeTemplate]
@@ -151,23 +155,24 @@ class ModuleSummaryTemplate:
         return sorted(members, key=lambda member: member.name)
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-attribute {slot.plugin_attrs}>
-            <docnote-header>
-                <docnote-name obj-type="attribute" role="heading" aria-level="2">
-                    {var.name}
-                </docnote-name>
-                {slot.typespec}
-            </docnote-header>
-            <docnote-notes>
-                {slot.notes}
-            </docnote-notes>
-            <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
-        </docnote-attribute>
-        '''),  # noqa: E501
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-attribute {slot.plugin_attrs}>
+                <docnote-header>
+                    <docnote-name obj-type="attribute" role="heading" aria-level="2">
+                        {var.name}
+                    </docnote-name>
+                    {slot.typespec}
+                </docnote-header>
+                <docnote-notes>
+                    {slot.notes}
+                </docnote-notes>
+                <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
+            </docnote-attribute>
+            '''),  # noqa: E501
+        loader=INLINE_TEMPLATE_LOADER))
 class VariableSummaryTemplate:
     name: Var[str]
     typespec: Slot[TypespecTemplate]
@@ -201,33 +206,34 @@ class VariableSummaryTemplate:
             plugin_widgets=plugin_widgets)
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-class {slot.plugin_attrs}>
-            <docnote-header>
-                <docnote-name obj-type="class" role="heading" aria-level="2">
-                    {var.name}
-                </docnote-name>
-                <docnote-class-metaclass>
-                    {slot.metaclass}
-                </docnote-class-metaclass>
-                <docnote-class-bases-container>
-                    <docnote-class-bases role="list">
-                        {slot.bases:
-                        __prefix__='<docnote-class-base role="listitem">',
-                        __suffix__='</docnote-class-base>'}
-                    </docnote-class-bases>
-                </docnote-class-bases-container>
-                <docnote-docstring obj-type="class">
-                    {slot.docstring}
-                </docnote-docstring>
-            </docnote-header>
-            {slot.members}
-            <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
-        </docnote-class>
-        '''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-class {slot.plugin_attrs}>
+                <docnote-header>
+                    <docnote-name obj-type="class" role="heading" aria-level="2">
+                        {var.name}
+                    </docnote-name>
+                    <docnote-class-metaclass>
+                        {slot.metaclass}
+                    </docnote-class-metaclass>
+                    <docnote-class-bases-container>
+                        <docnote-class-bases role="list">
+                            {slot.bases:
+                            __prefix__='<docnote-class-base role="listitem">',
+                            __suffix__='</docnote-class-base>'}
+                        </docnote-class-bases>
+                    </docnote-class-bases-container>
+                    <docnote-docstring obj-type="class">
+                        {slot.docstring}
+                    </docnote-docstring>
+                </docnote-header>
+                {slot.members}
+                <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
+            </docnote-class>
+            '''),  # noqa: E501
+        loader=INLINE_TEMPLATE_LOADER))
 class ClassSummaryTemplate:
     name: Var[str]
     metaclass: Slot[NormalizedConcreteTypeTemplate]
@@ -305,39 +311,40 @@ def _transform_callable_color(value: CallableColor) -> str:
         return 'call-color="sync"'
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-callable {slot.plugin_attrs}>
-            <docnote-header>
-                <docnote-name obj-type="callable" role="heading" aria-level="2">
-                    {var.name}
-                </docnote-name>
-                <docnote-docstring obj-type="callable">
-                    {slot.docstring}
-                </docnote-docstring>
-                <docnote-tags>
-                    <docnote-tag {content.color}></docnote-tag>
-                    <docnote-tag {content.method_type}></docnote-tag>
-                    <docnote-tag {content.is_generator}></docnote-tag>
-                </docnote-tags>
-            </docnote-header>
-            <docnote-callable-signatures>
-                {slot.signatures}
-            </docnote-callable-signatures>
-            <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
-        </docnote-callable>
-        '''),  # noqa: E501
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-callable {slot.plugin_attrs}>
+                <docnote-header>
+                    <docnote-name obj-type="callable" role="heading" aria-level="2">
+                        {var.name}
+                    </docnote-name>
+                    <docnote-docstring obj-type="callable">
+                        {slot.docstring}
+                    </docnote-docstring>
+                    <docnote-tags>
+                        <docnote-tag {content.color}></docnote-tag>
+                        <docnote-tag {content.method_type}></docnote-tag>
+                        <docnote-tag {content.is_generator}></docnote-tag>
+                    </docnote-tags>
+                </docnote-header>
+                <docnote-callable-signatures>
+                    {slot.signatures}
+                </docnote-callable-signatures>
+                <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
+            </docnote-callable>
+            '''),  # noqa: E501
+        loader=INLINE_TEMPLATE_LOADER))
 class CallableSummaryTemplate:
     name: Var[str]
     docstring: Slot[HtmlTemplate | ClcRichtextBlocknodeTemplate]
 
-    color: Content[CallableColor] = template_field(FieldConfig(
+    color: Content[CallableColor] = ext_field(FieldConfig(
         transformer=_transform_callable_color))
-    method_type: Content[MethodType | None] = template_field(FieldConfig(
+    method_type: Content[MethodType | None] = ext_field(FieldConfig(
         transformer=_transform_method_type))
-    is_generator: Content[bool] = template_field(FieldConfig(
+    is_generator: Content[bool] = ext_field(FieldConfig(
         transformer=_transform_is_generator))
 
     signatures: Slot[SignatureSummaryTemplate]
@@ -383,25 +390,26 @@ class CallableSummaryTemplate:
         return sorted(members, key=lambda member: member.ordering_index or 0)
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-callable-signature {slot.plugin_attrs}>
-            <docnote-header>
-                <docnote-docstring obj-type="callable-signature">
-                    {slot.docstring}
-                </docnote-docstring>
-            </docnote-header>
-            <docnote-callable-signature-params role="list">
-                {slot.params}
-            </docnote-callable-signature-params>
-            <docnote-callable-signature-retval>
-                {slot.retval}
-            </docnote-callable-signature-retval>
-            <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
-        </docnote-callable-signature>
-        '''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-callable-signature {slot.plugin_attrs}>
+                <docnote-header>
+                    <docnote-docstring obj-type="callable-signature">
+                        {slot.docstring}
+                    </docnote-docstring>
+                </docnote-header>
+                <docnote-callable-signature-params role="list">
+                    {slot.params}
+                </docnote-callable-signature-params>
+                <docnote-callable-signature-retval>
+                    {slot.retval}
+                </docnote-callable-signature-retval>
+                <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
+            </docnote-callable-signature>
+            '''),
+        loader=INLINE_TEMPLATE_LOADER))
 class SignatureSummaryTemplate:
     params: Slot[ParamSummaryTemplate]
     retval: Slot[RetvalSummaryTemplate]
@@ -450,28 +458,29 @@ def _transform_param_style(value: ParamStyle) -> str:
     return f'style="{value.value}"'
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-callable-signature-param {content.style} role="listitem" {slot.plugin_attrs}>
-            <docnote-header>
-                <docnote-name obj-type="callable-signature-param-item" role="heading" aria-level="3">
-                    {var.name}
-                </docnote-name>
-                {slot.typespec}
-            </docnote-header>
-            <docnote-callable-signature-param-default>
-                {slot.default}
-            </docnote-callable-signature-param-default>
-            <docnote-notes>
-                {slot.notes}
-            </docnote-notes>
-            <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
-        </docnote-callable-signature-param>
-        '''),  # noqa: E501
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-callable-signature-param {content.style} role="listitem" {slot.plugin_attrs}>
+                <docnote-header>
+                    <docnote-name obj-type="callable-signature-param-item" role="heading" aria-level="3">
+                        {var.name}
+                    </docnote-name>
+                    {slot.typespec}
+                </docnote-header>
+                <docnote-callable-signature-param-default>
+                    {slot.default}
+                </docnote-callable-signature-param-default>
+                <docnote-notes>
+                    {slot.notes}
+                </docnote-notes>
+                <docnote-widgets>{slot.plugin_widgets}</docnote-widgets>
+            </docnote-callable-signature-param>
+            '''),  # noqa: E501
+        loader=INLINE_TEMPLATE_LOADER))
 class ParamSummaryTemplate:
-    style: Content[ParamStyle] = template_field(FieldConfig(
+    style: Content[ParamStyle] = ext_field(FieldConfig(
         transformer=_transform_param_style))
     name: Var[str]
     typespec: Slot[TypespecTemplate]
@@ -512,19 +521,20 @@ class ParamSummaryTemplate:
             plugin_widgets=plugin_widgets)
 
 
-@template(
+@ext_dataclass(
     html,
-    # Note: the parent signature is responsible for wrapping this in the retval
-    # container tag.
-    dedent('''\
-        <docnote-header>
-            {slot.typespec}
-        </docnote-header>
-        <docnote-notes>
-            {slot.notes}
-        </docnote-notes>
-        '''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        # Note: the parent signature is responsible for wrapping this in the
+        # retval container tag.
+        dedent('''\
+            <docnote-header>
+                {slot.typespec}
+            </docnote-header>
+            <docnote-notes>
+                {slot.notes}
+            </docnote-notes>
+            '''),
+        loader=INLINE_TEMPLATE_LOADER))
 class RetvalSummaryTemplate:
     typespec: Slot[TypespecTemplate]
     notes: Slot[HtmlTemplate | ClcRichtextBlocknodeTemplate]
@@ -548,14 +558,15 @@ class RetvalSummaryTemplate:
             notes=rendered_notes)
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-value-repr>
-            {var.reprified_value}
-        </docnote-value-repr>
-        '''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-value-repr>
+                {var.reprified_value}
+            </docnote-value-repr>
+            '''),
+        loader=INLINE_TEMPLATE_LOADER))
 class ValueReprTemplate:
     reprified_value: Var[str]
 
@@ -579,120 +590,129 @@ def _transform_tagspec_key(value: str) -> str:
     return value.removeprefix('has_')
 
 
-@template(
+@ext_dataclass(
     html,
-    '<docnote-tag {content.key}="{content.value}"></docnote-tag>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<docnote-tag {content.key}="{content.value}"></docnote-tag>',
+        loader=INLINE_TEMPLATE_LOADER))
 class TypespecTagTemplate:
     """Typespec tags are used for eg ``ClassVar[...]``, ``Final[...]``,
     etc.
     """
-    key: Content[str] = template_field(
+    key: Content[str] = ext_field(
         FieldConfig(transformer=_transform_tagspec_key))
-    value: Content[bool] = template_field(
+    value: Content[bool] = ext_field(
         FieldConfig(transformer=_transform_lowercase_bool))
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-typespec>
-            <docnote-normtype>
-                {slot.normtype}
-            </docnote-normtype>
-            <docnote-tags>
-                {slot.typespec_tags}
-            </docnote-tags>
-        </docnote-typespec>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-typespec>
+                <docnote-normtype>
+                    {slot.normtype}
+                </docnote-normtype>
+                <docnote-tags>
+                    {slot.typespec_tags}
+                </docnote-tags>
+            </docnote-typespec>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class TypespecTemplate:
     normtype: Slot[NormalizedTypeTemplate]
     typespec_tags: Slot[TypespecTagTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    # Note: we're not doing a role of list here, because the child elements
-    # may or may not be list items (because they can also be used outside of
-    # a union) and therefore there's no way to distinguish between them
-    dedent('''\
-        <docnote-normtype-union-container>
-            <docnote-normtype-union>
-                {slot.normtypes}
-            </docnote-normtype-union>
-        </docnote-normtype-union-container>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        # Note: we're not doing a role of list here, because the child elements
+        # may or may not be list items (because they can also be used outside
+        # of a union) and therefore there's no way to distinguish between them
+        dedent('''\
+            <docnote-normtype-union-container>
+                <docnote-normtype-union>
+                    {slot.normtypes}
+                </docnote-normtype-union>
+            </docnote-normtype-union-container>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class NormalizedUnionTypeTemplate:
     normtypes: Slot[NormalizedTypeTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-normtype-concrete>
-            <docnote-normtype-concrete-primary>
-                {slot.primary}
-            </docnote-normtype-concrete-primary>
-            <docnote-normtype-params-container>
-                <docnote-normtype-params>
-                    {slot.params}
-                </docnote-normtype-params>
-            </docnote-normtype-params-container>
-        </docnote-normtype-concrete>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-normtype-concrete>
+                <docnote-normtype-concrete-primary>
+                    {slot.primary}
+                </docnote-normtype-concrete-primary>
+                <docnote-normtype-params-container>
+                    <docnote-normtype-params>
+                        {slot.params}
+                    </docnote-normtype-params>
+                </docnote-normtype-params-container>
+            </docnote-normtype-concrete>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class NormalizedConcreteTypeTemplate:
     primary: Slot[CrossrefSummaryTemplate]
     params: Slot[NormalizedTypeTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-normtype-emptygeneric>
-            <docnote-normtype-params-container>
-                <docnote-normtype-params>
-                    {slot.params}
-                </docnote-normtype-params>
-            </docnote-normtype-params-container>
-        </docnote-normtype-emptygeneric>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-normtype-emptygeneric>
+                <docnote-normtype-params-container>
+                    <docnote-normtype-params>
+                        {slot.params}
+                    </docnote-normtype-params>
+                </docnote-normtype-params-container>
+            </docnote-normtype-emptygeneric>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class NormalizedEmptyGenericTypeTemplate:
     params: Slot[NormalizedTypeTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <docnote-normtype-specialform>
-            {slot.type_}
-        </docnote-normtype-specialform>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <docnote-normtype-specialform>
+                {slot.type_}
+            </docnote-normtype-specialform>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class NormalizedSpecialTypeTemplate:
     type_: Slot[CrossrefSummaryTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    # Note: we're not doing a role of list here, because the child elements
-    # may or may not be list items (because they can also be used outside of
-    # a literal) and therefore there's no way to distinguish between them
-    dedent('''\
-        <docnote-normtype-literal>
-            {slot.values}
-        </docnote-normtype-literal>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        # Note: we're not doing a role of list here, because the child elements
+        # may or may not be list items (because they can also be used outside
+        # of a literal) and therefore there's no way to distinguish between
+        # them
+        dedent('''\
+            <docnote-normtype-literal>
+                {slot.values}
+            </docnote-normtype-literal>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class NormalizedLiteralTypeTemplate:
     values: Slot[FallbackContainerTemplate | CrossrefSummaryTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <abbr title="{var.qualname}{var.traversals}">
-            {slot.crossref_target}
-        </abbr>
-        '''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <abbr title="{var.qualname}{var.traversals}">
+                {slot.crossref_target}
+            </abbr>
+            '''),
+        loader=INLINE_TEMPLATE_LOADER))
 class CrossrefSummaryTemplate:
     qualname: Var[str]
     traversals: Var[str | None] = field(default=None, kw_only=True)
@@ -735,10 +755,11 @@ class CrossrefSummaryTemplate:
         return cls.from_crossref(summary_node.crossref)
 
 
-@template(
+@ext_dataclass(
     html,
-    '<a href="{var.target}">{slot.text}</a>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<a href="{var.target}">{slot.text}</a>',
+        loader=INLINE_TEMPLATE_LOADER))
 class CrossrefLinkTemplate:
     target: Var[str]
     text: Slot[CrossrefTextTemplate]
@@ -750,13 +771,14 @@ class CrossrefLinkTemplate:
             text_instance.has_traversals = self.has_traversals
 
 
-@template(
+@ext_dataclass(
     html,
-    '{var.shortname}{content.has_traversals}',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '{var.shortname}{content.has_traversals}',
+        loader=INLINE_TEMPLATE_LOADER))
 class CrossrefTextTemplate:
     shortname: Var[str]
-    has_traversals: Content[bool] = template_field(
+    has_traversals: Content[bool] = ext_field(
         FieldConfig(
             transformer=lambda value: '<...>' if value else None))
 
