@@ -2,6 +2,7 @@
 __doc_meta__: true
 foo: "oof"
 bar: "rab"
+arbitrary_bool: true
 <
 
 fly you fools

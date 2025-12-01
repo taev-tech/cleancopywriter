@@ -203,7 +203,7 @@ class ClcMetadataTemplate:
                 retval.append(cls(
                     type_=DATATYPE_NAMES[type(datatyped_value)],
                     key=key,
-                    value=html_escape(datatyped_value.value, quote=True)))
+                    value=html_escape(str(datatyped_value.value), quote=True)))
 
         return retval
 
