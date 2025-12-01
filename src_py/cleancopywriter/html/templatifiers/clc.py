@@ -208,13 +208,6 @@ class ClcMetadataTemplate:
         return retval
 
 
-def _transform_block_role(value: bool) -> str:
-    if value:
-        return ' role="article"'
-    else:
-        return ''
-
-
 @ext_dataclass(
     html,
     TemplateResourceConfig(
@@ -248,8 +241,6 @@ class ClcRichtextBlocknodeTemplate:
 
     nodeinfo: Content[BlockNodeInfo | None] = ext_field(FieldConfig(
         transformer=_transform_spec_metadatas_block))
-    role_if_root: Content[bool] = ext_field(FieldConfig(
-        transformer=_transform_block_role))
 
     @classmethod
     def from_document(
@@ -319,7 +310,6 @@ class ClcRichtextBlocknodeTemplate:
             title=title,
             metadata=ClcMetadataTemplate.from_ast_node(
                 node.info, doc_coll) if node.info is not None else [],
-            role_if_root=node.depth <= 0,
             body=templatified_content,
             nodeinfo=node.info,
             plugin_attrs=plugin_attrs,
