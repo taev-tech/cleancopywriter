@@ -31,17 +31,18 @@ from cleancopy.spectypes import BlockMetadataMagic
 from cleancopy.spectypes import InlineFormatting
 from cleancopy.spectypes import InlineMetadataMagic
 from cleancopy.spectypes import ListType
+from dcei import ext_dataclass
+from dcei import ext_field
 from templatey import Content
 from templatey import DynamicClassSlot
 from templatey import Slot
+from templatey import TemplateClassInstance
+from templatey import TemplateResourceConfig
 from templatey import Var
-from templatey import template
-from templatey._types import TemplateParamsInstance
-from templatey.prebaked.template_configs import html
+from templatey.prebaked.configs import html
+from templatey.prebaked.loaders import INLINE_TEMPLATE_LOADER
 from templatey.templates import FieldConfig
-from templatey.templates import template_field
 
-from cleancopywriter.html.generic_templates import TEMPLATE_LOADER
 from cleancopywriter.html.generic_templates import HtmlAttr
 from cleancopywriter.html.generic_templates import HtmlGenericElement
 from cleancopywriter.html.generic_templates import HtmlTemplate
@@ -169,11 +170,12 @@ def _transform_spec_metadatas_inline(value: InlineNodeInfo | None) -> str:
     return ' '.join(to_join)
 
 
-@template(
+@ext_dataclass(
     html,
-    '<clc-metadata type="{content.type_}" key="{var.key}" value="{var.value}">'
-    + '</clc-metadata>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<clc-metadata type="{content.type_}" key="{var.key}" '
+        + 'value="{var.value}"></clc-metadata>',
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcMetadataTemplate:
     """This template is used for individual metadata key/value pairs.
     """
@@ -206,28 +208,22 @@ class ClcMetadataTemplate:
         return retval
 
 
-def _transform_block_role(value: bool) -> str:
-    if value:
-        return ' role="article"'
-    else:
-        return ''
-
-
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <clc-block type="richtext"{content.role_if_root}{content.nodeinfo}{
-                slot.plugin_attrs: __prefix__=' '}>
-            <clc-header>
-                {slot.title}
-                <clc-metadatas>
-                    {slot.metadata}
-                </clc-metadatas>
-            </clc-header>
-            {slot.body}
-            <clc-widgets>{slot.plugin_widgets}</clc-widgets>
-        </clc-block>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <clc-block type="richtext"{content.nodeinfo}{
+                    slot.plugin_attrs: __prefix__=' '}>
+                <clc-header>
+                    {slot.title}
+                    <clc-metadatas>
+                        {slot.metadata}
+                    </clc-metadatas>
+                </clc-header>
+                {slot.body}
+                <clc-widgets>{slot.plugin_widgets}</clc-widgets>
+            </clc-block>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextBlocknodeTemplate:
     """This template is used for richtext block nodes. Note that it
     differs (only slightly) from the template used for embedding block
@@ -243,10 +239,8 @@ class ClcRichtextBlocknodeTemplate:
     plugin_attrs: Slot[HtmlAttr]
     plugin_widgets: DynamicClassSlot
 
-    nodeinfo: Content[BlockNodeInfo | None] = template_field(FieldConfig(
+    nodeinfo: Content[BlockNodeInfo | None] = ext_field(FieldConfig(
         transformer=_transform_spec_metadatas_block))
-    role_if_root: Content[bool] = template_field(FieldConfig(
-        transformer=_transform_block_role))
 
     @classmethod
     def from_document(
@@ -316,17 +310,18 @@ class ClcRichtextBlocknodeTemplate:
             title=title,
             metadata=ClcMetadataTemplate.from_ast_node(
                 node.info, doc_coll) if node.info is not None else [],
-            role_if_root=node.depth <= 0,
             body=templatified_content,
             nodeinfo=node.info,
             plugin_attrs=plugin_attrs,
             plugin_widgets=plugin_widgets)
 
 
-@template(
+@ext_dataclass(
     html,
-    '<clc-embedding-fallback><pre>{slot.body}</pre></clc-embedding-fallback>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<clc-embedding-fallback><pre>{slot.body}</pre>'
+        + '</clc-embedding-fallback>',
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcEmbeddingFallbackContentTemplate:
     """This template is used as a fallback for embeddings where there is
     no plugin defined to handle the embedding type.
@@ -334,11 +329,12 @@ class ClcEmbeddingFallbackContentTemplate:
     body: Slot[PlaintextTemplate]
 
 
-@template(
+@ext_dataclass(
     html,
-    '<clc-embedding-plugin plugin-name="{content.plugin_name}">{slot.body}'
-    + '</clc-embedding-plugin>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<clc-embedding-plugin plugin-name="{content.plugin_name}">{slot.body}'
+        + '</clc-embedding-plugin>',
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcEmbeddingPluginContentTemplate:
     """This template is used for embeddings where a plugin is defined to
     handle the embedding type.
@@ -347,21 +343,22 @@ class ClcEmbeddingPluginContentTemplate:
     body: DynamicClassSlot
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <clc-block type="embedding"{content.nodeinfo}{
-                slot.plugin_attrs: __prefix__=' '}>
-            <clc-header>
-                {slot.title}
-                <clc-metadatas>
-                    {slot.metadata}
-                </clc-metadatas>
-            </clc-header>
-            {slot.embedding_content}
-            <clc-widgets>{slot.plugin_widgets}</clc-widgets>
-        </clc-block>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <clc-block type="embedding"{content.nodeinfo}{
+                    slot.plugin_attrs: __prefix__=' '}>
+                <clc-header>
+                    {slot.title}
+                    <clc-metadatas>
+                        {slot.metadata}
+                    </clc-metadatas>
+                </clc-header>
+                {slot.embedding_content}
+                <clc-widgets>{slot.plugin_widgets}</clc-widgets>
+            </clc-block>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcEmbeddingBlocknodeTemplate:
     """This template is used to contain embedding block
     nodes. Note that it differs (only slightly) from the template used
@@ -379,7 +376,7 @@ class ClcEmbeddingBlocknodeTemplate:
     # embedding system.
     plugin_widgets: DynamicClassSlot
 
-    nodeinfo: Content[BlockNodeInfo | None] = template_field(FieldConfig(
+    nodeinfo: Content[BlockNodeInfo | None] = ext_field(FieldConfig(
         transformer=_transform_spec_metadatas_block))
 
     @classmethod
@@ -450,19 +447,20 @@ class ClcEmbeddingBlocknodeTemplate:
             plugin_widgets=plugin_widgets)
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <clc-context{content.nodeinfo}{slot.plugin_attrs: __prefix__=' '}>
-            <clc-header>
-                <clc-metadatas>
-                    {slot.metadata}
-                </clc-metadatas>
-            </clc-header>
-            {slot.body}
-            <clc-widgets>{slot.plugin_widgets}</clc-widgets>
-        </clc-context>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <clc-context{content.nodeinfo}{slot.plugin_attrs: __prefix__=' '}>
+                <clc-header>
+                    <clc-metadatas>
+                        {slot.metadata}
+                    </clc-metadatas>
+                </clc-header>
+                {slot.body}
+                <clc-widgets>{slot.plugin_widgets}</clc-widgets>
+            </clc-context>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextInlineNodeTemplate:
     """This is used as the outermost wrapper for inline richtext nodes.
     Note that all text is wrapped in one of these -- including text
@@ -475,7 +473,7 @@ class ClcRichtextInlineNodeTemplate:
     plugin_attrs: Slot[HtmlAttr]
     plugin_widgets: DynamicClassSlot
 
-    nodeinfo: Content[InlineNodeInfo | None] = template_field(FieldConfig(
+    nodeinfo: Content[InlineNodeInfo | None] = ext_field(FieldConfig(
         transformer=_transform_spec_metadatas_inline))
 
     @classmethod
@@ -524,10 +522,11 @@ class ClcRichtextInlineNodeTemplate:
                 plugin_widgets=plugin_widgets)
 
 
-@template(
+@ext_dataclass(
     html,
-    '<clc-p role="paragraph">{slot.body}</clc-p>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<clc-p role="paragraph">{slot.body}</clc-p>',
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcParagraphTemplate:
     """As the name suggests, used for cleancopy paragraphs.
 
@@ -571,13 +570,14 @@ class ClcParagraphTemplate:
         return cls(body=body)
 
 
-@template(
+@ext_dataclass(
     html,
-    dedent('''\
-        <{content.tag}>
-            {slot.items}
-        </{content.tag}>'''),
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        dedent('''\
+            <{content.tag}>
+                {slot.items}
+            </{content.tag}>'''),
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcListTemplate:
     """Annotations get converted to comments.
     """
@@ -611,14 +611,15 @@ def _transform_listitem_index(value: int | None) -> str:
         return f' value="{value}"'
 
 
-@template(
+@ext_dataclass(
     html,
-    '<li{content.index}>{slot.body}</li>',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<li{content.index}>{slot.body}</li>',
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcListItemTemplate:
     """Annotations get converted to comments.
     """
-    index: Content[int | None] = template_field(FieldConfig(
+    index: Content[int | None] = ext_field(FieldConfig(
         transformer=_transform_listitem_index))
     body: Slot[ClcParagraphTemplate]  # type: ignore
 
@@ -637,10 +638,11 @@ class ClcListItemTemplate:
             body=body)
 
 
-@template(
+@ext_dataclass(
     html,
-    '<!--{var.text}-->',
-    loader=TEMPLATE_LOADER)
+    TemplateResourceConfig(
+        '<!--{var.text}-->',
+        loader=INLINE_TEMPLATE_LOADER))
 class ClcAnnotationTemplate:
     """Annotations get converted to comments.
     """
@@ -721,10 +723,10 @@ def _apply_plugins[T: ASTNode](
         doc_coll: HtmlDocumentCollection,
         node_type: type[T],
         node: T
-        ) -> tuple[list[HtmlAttr], list[TemplateParamsInstance]]:
+        ) -> tuple[list[HtmlAttr], list[TemplateClassInstance]]:
     plugins = doc_coll.plugin_manager.get_clc_plugins(node_type)
     plugin_attrs: list[HtmlAttr] = []
-    plugin_widgets: list[TemplateParamsInstance] = []
+    plugin_widgets: list[TemplateClassInstance] = []
 
     for plugin in plugins:
         injection = plugin(node)

@@ -9,7 +9,7 @@ from cleancopy.ast import ASTNode
 from cleancopy.ast import EmbeddingBlockNode
 from docnote import Note
 from docnote_extract.summaries import SummaryBase
-from templatey._types import TemplateParamsInstance
+from templatey._types import TemplateClassInstance
 
 from cleancopywriter.html.generic_templates import HtmlAttr
 
@@ -108,5 +108,5 @@ class DocnotesPlugin(Protocol):
 
 @dataclass(slots=True)
 class PluginInjection:
-    widgets: Sequence[TemplateParamsInstance] | None = None
+    widgets: Sequence[TemplateClassInstance] | None = None
     attrs: Sequence[HtmlAttr] | None = None
