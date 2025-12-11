@@ -1,0 +1,10 @@
+> Behavior of magic metadatas
+<
+
+++  semantic modifiers: these alter the tag name for the inline or block node
+    they're assigned to. note that as per html spec, they must contain at least
+    one hyphen. also, these **must** be a custom element; they cannot be a
+    stock html element (Since the custom attributes are not prefixed by
+    ``data-``)
+++  style modifiers: these are assigned as the class for the element
+++  all other magic metadatas are assigned as custom attributes on the element
