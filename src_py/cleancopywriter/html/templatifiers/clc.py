@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import typing
+from dataclasses import field
+from functools import partial
 from html import escape as html_escape
 from textwrap import dedent
 from typing import Self
@@ -71,25 +73,26 @@ DATATYPE_NAMES = {
     ReferenceDataType: '&',}
 
 
-def _transform_spec_metadatas_block(value: BlockNodeInfo | None) -> str:  # noqa: C901
-    if value is None:
-        return ''
-
-    spec_metadatas: dict[str, object] = {}
+def _transform_spec_metadatas_block(
+        value: BlockNodeInfo
+        ) -> list[HtmlAttr]:
+    retval: list[HtmlAttr] = []
     for enum_member in BlockMetadataMagic:
         fieldname = enum_member.name
 
-        # Skip this because it's only relevant for processing the AST
-        if fieldname == 'is_doc_metadata':
+        # Skip is_doc_metadata because it's only relevant for creating the AST
+        # Skip the other because it's handled by the actual processing code
+        if fieldname in {'is_doc_metadata', 'semantic_modifiers'}:
             continue
 
         field_value = getattr(value, fieldname)
         if field_value is not None:
-            # These are both enums that need special handling
-            if fieldname == 'formatting':
+            # These are both enums that need special handling, but the value
+            # itself is already safe (since we control it)
+            if fieldname in {'formatting', 'fallback'}:
+                coerced_fieldname = fieldname
                 coerced_field_value = field_value.name.lower()
-            elif fieldname == 'fallback':
-                coerced_field_value = field_value.name.lower()
+
             elif isinstance(
                 field_value,
                 MentionDataType
@@ -100,41 +103,38 @@ def _transform_spec_metadatas_block(value: BlockNodeInfo | None) -> str:  # noqa
                 raise NotImplementedError(
                     'Non-string link targets not yet supported for spectype '
                     + 'metadata', fieldname)
+
             else:
+                if fieldname == 'embed':
+                    coerced_fieldname = 'embedding'
+                elif fieldname == 'style_modifiers':
+                    coerced_fieldname = 'class'
+                else:
+                    coerced_fieldname = fieldname.replace('_', '-')
+
                 coerced_field_value = html_escape(
                     field_value.value, quote=True)
 
-            spec_metadatas[fieldname] = coerced_field_value
+            retval.append(HtmlAttr(coerced_fieldname, coerced_field_value))
 
-    # Short-circuit so that we don't get an extra space for an empty list
-    if not spec_metadatas:
-        return ''
-
-    # First empty string here is so that we get an extra space at the beginning
-    # of the list
-    to_join: list[str] = ['']
-    for fieldname in sorted(spec_metadatas):
-        if fieldname == 'embed':
-            coerced_fieldname = 'embedding'
-        else:
-            coerced_fieldname = fieldname.replace('_', '-')
-
-        coerced_value = spec_metadatas[fieldname]
-        to_join.append(f'{coerced_fieldname}="{coerced_value}"')
-
-    return ' '.join(to_join)
+    retval.sort(key=lambda instance: instance.key)
+    return retval
 
 
-def _transform_spec_metadatas_inline(value: InlineNodeInfo | None) -> str:
-    if value is None:
-        return ''
-
-    spec_metadatas: dict[str, object] = {}
+def _transform_spec_metadatas_inline(
+        value: InlineNodeInfo
+        ) -> list[HtmlAttr]:
+    retval: list[HtmlAttr] = []
     for enum_member in InlineMetadataMagic:
         fieldname = enum_member.name
 
         # Skip these because they're handled by the actual processing code
-        if fieldname in {'target', 'formatting', 'sugared'}:
+        if fieldname in {
+            'target',
+            'formatting',
+            'sugared',
+            'semantic_modifiers',
+        }:
             continue
 
         field_value = getattr(value, fieldname)
@@ -150,24 +150,18 @@ def _transform_spec_metadatas_inline(value: InlineNodeInfo | None) -> str:
                     'Non-string link targets not yet supported for spectype '
                     + 'metadata', fieldname)
             else:
+                if fieldname == 'style_modifiers':
+                    coerced_fieldname = 'class'
+                else:
+                    coerced_fieldname = fieldname.replace('_', '-')
+
                 coerced_field_value = html_escape(
                     field_value.value, quote=True)
 
-            spec_metadatas[fieldname] = coerced_field_value
+            retval.append(HtmlAttr(coerced_fieldname, coerced_field_value))
 
-    # Short-circuit so that we don't get an extra space for an empty list
-    if not spec_metadatas:
-        return ''
-
-    # First empty string here is so that we get an extra space at the beginning
-    # of the list
-    to_join: list[str] = ['']
-    for fieldname in sorted(spec_metadatas):
-        coerced_fieldname = fieldname.replace('_', '-')
-        coerced_value = spec_metadatas[fieldname]
-        to_join.append(f'{coerced_fieldname}="{coerced_value}"')
-
-    return ' '.join(to_join)
+    retval.sort(key=lambda instance: instance.key)
+    return retval
 
 
 @ext_dataclass(
@@ -212,7 +206,8 @@ class ClcMetadataTemplate:
     html,
     TemplateResourceConfig(
         dedent('''\
-            <clc-block type="richtext"{content.nodeinfo}{
+            <{content.tagname} type="richtext"{
+                    slot.spectype_attrs: __prefix__=' '}{
                     slot.plugin_attrs: __prefix__=' '}>
                 <clc-header>
                     {slot.title}
@@ -222,13 +217,14 @@ class ClcMetadataTemplate:
                 </clc-header>
                 {slot.body}
                 <clc-widgets>{slot.plugin_widgets}</clc-widgets>
-            </clc-block>'''),
+            </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextBlocknodeTemplate:
     """This template is used for richtext block nodes. Note that it
     differs (only slightly) from the template used for embedding block
     nodes.
     """
+    tagname: Content[str] = field(kw_only=True, default='clc-block')
     title: Slot[HtmlGenericElement]
     metadata: Slot[ClcMetadataTemplate]
     body: Slot[
@@ -239,8 +235,7 @@ class ClcRichtextBlocknodeTemplate:
     plugin_attrs: Slot[HtmlAttr]
     plugin_widgets: DynamicClassSlot
 
-    nodeinfo: Content[BlockNodeInfo | None] = ext_field(FieldConfig(
-        transformer=_transform_spec_metadatas_block))
+    spectype_attrs: Slot[HtmlAttr]
 
     @classmethod
     def from_document(
@@ -306,12 +301,21 @@ class ClcRichtextBlocknodeTemplate:
 
         plugin_attrs, plugin_widgets = _apply_plugins(
             doc_coll, RichtextBlockNode, node)
+
+        if node.info is None:
+            spectype_attrs = ()
+        else:
+            if node.info.semantic_modifiers is not None:
+                cls = partial(cls, tagname=node.info.semantic_modifiers.value)  # noqa: PLW0642
+
+            spectype_attrs = _transform_spec_metadatas_block(node.info)
+
         return cls(
             title=title,
             metadata=ClcMetadataTemplate.from_ast_node(
                 node.info, doc_coll) if node.info is not None else [],
             body=templatified_content,
-            nodeinfo=node.info,
+            spectype_attrs=spectype_attrs,
             plugin_attrs=plugin_attrs,
             plugin_widgets=plugin_widgets)
 
@@ -347,7 +351,8 @@ class ClcEmbeddingPluginContentTemplate:
     html,
     TemplateResourceConfig(
         dedent('''\
-            <clc-block type="embedding"{content.nodeinfo}{
+            <{content.tagname} type="embedding"{
+                    slot.spectype_attrs: __prefix__=' '}{
                     slot.plugin_attrs: __prefix__=' '}>
                 <clc-header>
                     {slot.title}
@@ -357,13 +362,14 @@ class ClcEmbeddingPluginContentTemplate:
                 </clc-header>
                 {slot.embedding_content}
                 <clc-widgets>{slot.plugin_widgets}</clc-widgets>
-            </clc-block>'''),
+            </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcEmbeddingBlocknodeTemplate:
     """This template is used to contain embedding block
     nodes. Note that it differs (only slightly) from the template used
     for richtext block nodes.
     """
+    tagname: Content[str] = field(kw_only=True, default='clc-block')
     title: Slot[HtmlGenericElement]
     metadata: Slot[ClcMetadataTemplate]
     embedding_content: Slot[
@@ -376,11 +382,10 @@ class ClcEmbeddingBlocknodeTemplate:
     # embedding system.
     plugin_widgets: DynamicClassSlot
 
-    nodeinfo: Content[BlockNodeInfo | None] = ext_field(FieldConfig(
-        transformer=_transform_spec_metadatas_block))
+    spectype_attrs: Slot[HtmlAttr]
 
     @classmethod
-    def from_ast_node(
+    def from_ast_node(  # noqa: C901, PLR0912
             cls,
             node: EmbeddingBlockNode,
             doc_coll: HtmlDocumentCollection
@@ -438,11 +443,19 @@ class ClcEmbeddingBlocknodeTemplate:
             embedding_content.append(ClcEmbeddingFallbackContentTemplate(
                 body=plaintext_body))
 
+        if node.info is None:
+            spectype_attrs = ()
+        else:
+            if node.info.semantic_modifiers is not None:
+                cls = partial(cls, tagname=node.info.semantic_modifiers.value)  # noqa: PLW0642
+
+            spectype_attrs = _transform_spec_metadatas_block(node.info)
+
         return cls(
             title=title,
             metadata=ClcMetadataTemplate.from_ast_node(node.info, doc_coll),
             embedding_content=embedding_content,
-            nodeinfo=node.info,
+            spectype_attrs=spectype_attrs,
             plugin_attrs=plugin_attrs,
             plugin_widgets=plugin_widgets)
 
@@ -451,7 +464,8 @@ class ClcEmbeddingBlocknodeTemplate:
     html,
     TemplateResourceConfig(
         dedent('''\
-            <clc-context{content.nodeinfo}{slot.plugin_attrs: __prefix__=' '}>
+            <{content.tagname}{slot.spectype_attrs: __prefix__=' '}{
+                    slot.plugin_attrs: __prefix__=' '}>
                 <clc-header>
                     <clc-metadatas>
                         {slot.metadata}
@@ -459,7 +473,7 @@ class ClcEmbeddingBlocknodeTemplate:
                 </clc-header>
                 {slot.body}
                 <clc-widgets>{slot.plugin_widgets}</clc-widgets>
-            </clc-context>'''),
+            </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextInlineNodeTemplate:
     """This is used as the outermost wrapper for inline richtext nodes.
@@ -467,14 +481,14 @@ class ClcRichtextInlineNodeTemplate:
     within titles -- and therefore a ``<p>`` tag cannot be used (because
     they aren't valid within ``<h#>`` tags).
     """
+    tagname: Content[str] = field(kw_only=True, default='clc-context')
     metadata: Slot[ClcMetadataTemplate]
     body: Slot[HtmlTemplate | ClcRichtextInlineNodeTemplate]  # type: ignore
 
     plugin_attrs: Slot[HtmlAttr]
     plugin_widgets: DynamicClassSlot
 
-    nodeinfo: Content[InlineNodeInfo | None] = ext_field(FieldConfig(
-        transformer=_transform_spec_metadatas_inline))
+    spectype_attrs: Slot[HtmlAttr]
 
     @classmethod
     def from_ast_node(
@@ -505,11 +519,14 @@ class ClcRichtextInlineNodeTemplate:
             return cls(
                 metadata=[],
                 body=contained_content,
-                nodeinfo=None,
+                spectype_attrs=[],
                 plugin_attrs=plugin_attrs,
                 plugin_widgets=plugin_widgets)
 
         else:
+            if info.semantic_modifiers is not None:
+                cls = partial(cls, tagname=info.semantic_modifiers.value)  # noqa: PLW0642
+
             return cls(
                 metadata=ClcMetadataTemplate.from_ast_node(
                     node.info, doc_coll) if node.info is not None else [],
@@ -517,7 +534,7 @@ class ClcRichtextInlineNodeTemplate:
                     contained_content,
                     cast(InlineNodeInfo, info),
                     doc_coll=doc_coll),
-                nodeinfo=info,
+                spectype_attrs=_transform_spec_metadatas_inline(info),
                 plugin_attrs=plugin_attrs,
                 plugin_widgets=plugin_widgets)
 
