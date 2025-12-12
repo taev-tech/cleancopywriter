@@ -96,17 +96,6 @@ def _transform_spec_metadatas_block(
                 coerced_fieldname = fieldname
                 coerced_field_value = field_value.name.lower()
 
-            elif isinstance(
-                field_value,
-                MentionDataType
-                | TagDataType
-                | VariableDataType
-                | ReferenceDataType
-            ):
-                raise NotImplementedError(
-                    'Non-string link targets not yet supported for spectype '
-                    + 'metadata', fieldname)
-
             else:
                 if fieldname == 'embed':
                     coerced_fieldname = 'embedding'
@@ -115,8 +104,17 @@ def _transform_spec_metadatas_block(
                 else:
                     coerced_fieldname = fieldname.replace('_', '-')
 
-                coerced_field_value = html_escape(
-                    field_value.value, quote=True)
+                if isinstance(
+                    field_value,
+                    MentionDataType
+                    | TagDataType
+                    | VariableDataType
+                    | ReferenceDataType
+                ):
+                    coerced_field_value = doc_coll.target_resolver(field_value)
+                else:
+                    coerced_field_value = html_escape(
+                        field_value.value, quote=True)
 
             retval.append(HtmlAttr(coerced_fieldname, coerced_field_value))
 
@@ -134,7 +132,6 @@ def _transform_spec_metadatas_inline(
 
         # Skip these because they're handled by the actual processing code
         if fieldname in {
-            'target',
             'formatting',
             'sugared',
             'semantic_modifiers',
@@ -143,6 +140,11 @@ def _transform_spec_metadatas_inline(
 
         field_value = getattr(value, fieldname)
         if field_value is not None:
+            if fieldname == 'style_modifiers':
+                coerced_fieldname = 'class'
+            else:
+                coerced_fieldname = fieldname.replace('_', '-')
+
             if isinstance(
                 field_value,
                 MentionDataType
@@ -150,15 +152,8 @@ def _transform_spec_metadatas_inline(
                 | VariableDataType
                 | ReferenceDataType
             ):
-                raise NotImplementedError(
-                    'Non-string link targets not yet supported for spectype '
-                    + 'metadata', fieldname)
+                coerced_field_value = doc_coll.target_resolver(field_value)
             else:
-                if fieldname == 'style_modifiers':
-                    coerced_fieldname = 'class'
-                else:
-                    coerced_fieldname = fieldname.replace('_', '-')
-
                 coerced_field_value = html_escape(
                     field_value.value, quote=True)
 
