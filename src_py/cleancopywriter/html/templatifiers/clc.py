@@ -4,7 +4,6 @@ import typing
 from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
-from functools import partial
 from html import escape as html_escape
 from textwrap import dedent
 from typing import Self
@@ -31,6 +30,7 @@ from cleancopy.ast import RichtextInlineNode
 from cleancopy.ast import StrDataType
 from cleancopy.ast import TagDataType
 from cleancopy.ast import VariableDataType
+from cleancopy.spectypes import BlockFormatting
 from cleancopy.spectypes import BlockMetadataMagic
 from cleancopy.spectypes import InlineFormatting
 from cleancopy.spectypes import InlineMetadataMagic
@@ -741,7 +741,7 @@ class NodeContentTagWrapper:
     attrs: Sequence[HtmlAttr]
 
 
-def formatting_factory(
+def formatting_factory_inline(
         spectype: InlineFormatting,
         ) -> NodeContentTagWrapper:
     """Converts a formatting spectype into a ``NodeContentTagWrapper``.
@@ -777,6 +777,22 @@ def formatting_factory(
     return NodeContentTagWrapper(tag, attrs)
 
 
+def formatting_factory_block(
+        spectype: BlockFormatting,
+        ) -> NodeContentTagWrapper:
+    """Converts a formatting spectype into a ``NodeContentTagWrapper``.
+    """
+    if spectype is BlockFormatting.QUOTE:
+        tag = 'blockquote'
+        attrs = []
+
+    else:
+        raise TypeError(
+            'Invalid spectype for inline formatting!', spectype)
+
+    return NodeContentTagWrapper(tag, attrs)
+
+
 def _derive_inlinenode_tag_wrappers(
         info: InlineNodeInfo,
         *,
@@ -801,7 +817,7 @@ def _derive_inlinenode_tag_wrappers(
             NodeContentTagWrapper('a', [HtmlAttr('href', href)]))
 
     if info.formatting is not None:
-        wrappers.append(formatting_factory(info.formatting))
+        wrappers.append(formatting_factory_inline(info.formatting))
 
     return wrappers
 
@@ -819,6 +835,18 @@ def _derive_blocknode_tag_wrappers(
     if info.semantic_modifiers is not None:
         wrappers.append(
             NodeContentTagWrapper(info.semantic_modifiers.value, []))
+
+    if info.target is not None:
+        if isinstance(info.target, StrDataType):
+            href = html_escape(info.target.value, quote=True)
+        else:
+            href = doc_coll.target_resolver(info.target)
+
+        wrappers.append(
+            NodeContentTagWrapper('a', [HtmlAttr('href', href)]))
+
+    if info.formatting is not None:
+        wrappers.append(formatting_factory_block(info.formatting))
 
     return wrappers
 
