@@ -76,7 +76,8 @@ DATATYPE_NAMES = {
 
 
 def _transform_spec_metadatas_block(
-        value: BlockNodeInfo
+        value: BlockNodeInfo,
+        doc_coll: HtmlDocumentCollection
         ) -> list[HtmlAttr]:
     retval: list[HtmlAttr] = []
     for enum_member in BlockMetadataMagic:
@@ -124,7 +125,8 @@ def _transform_spec_metadatas_block(
 
 
 def _transform_spec_metadatas_inline(
-        value: InlineNodeInfo
+        value: InlineNodeInfo,
+        doc_coll: HtmlDocumentCollection
         ) -> list[HtmlAttr]:
     retval: list[HtmlAttr] = []
     for enum_member in InlineMetadataMagic:
@@ -170,7 +172,8 @@ def _transform_spec_metadatas_inline(
     html,
     TemplateResourceConfig(
         '<clc-metadata type="{content.type_}" key="{var.key}" '
-        + 'value="{var.value}"></clc-metadata>',
+        + 'value="{var.value}"{slot.extra_attrs: __prefix__=" "}>'
+        + '</clc-metadata>',
         loader=INLINE_TEMPLATE_LOADER))
 class ClcMetadataTemplate:
     """This template is used for individual metadata key/value pairs.
@@ -178,6 +181,7 @@ class ClcMetadataTemplate:
     type_: Content[str]
     key: Var[object]
     value: Var[object]
+    extra_attrs: Slot[HtmlAttr] = field(default_factory=tuple)
 
     @classmethod
     def from_ast_node(
@@ -196,10 +200,26 @@ class ClcMetadataTemplate:
                     value=''))
 
             else:
+                # And special-case the dedicated reference types, so that they
+                # can be given both the raw value and the resolved one.
+                if isinstance(
+                    datatyped_value,
+                    MentionDataType
+                    | TagDataType
+                    | VariableDataType
+                    | ReferenceDataType
+                ):
+                    href = doc_coll.target_resolver(datatyped_value)
+                    extra_attrs = [HtmlAttr('href', href)]
+
+                else:
+                    extra_attrs = ()
+
                 retval.append(cls(
                     type_=DATATYPE_NAMES[type(datatyped_value)],
                     key=key,
-                    value=html_escape(str(datatyped_value.value), quote=True)))
+                    value=html_escape(str(datatyped_value.value), quote=True),
+                    extra_attrs=extra_attrs))
 
         return retval
 
@@ -317,7 +337,9 @@ class ClcRichtextBlocknodeTemplate:
             tag_wrappers = _derive_blocknode_tag_wrappers(
                 cast(BlockNodeInfo, node.info), doc_coll=doc_coll)
 
-            spectype_attrs = _transform_spec_metadatas_block(node.info)
+            spectype_attrs = _transform_spec_metadatas_block(
+                node.info,
+                doc_coll=doc_coll)
 
         return cls(
             title=title,
@@ -466,7 +488,9 @@ class ClcEmbeddingBlocknodeTemplate:
             tag_wrappers = _derive_blocknode_tag_wrappers(
                 cast(BlockNodeInfo, node.info), doc_coll=doc_coll)
 
-            spectype_attrs = _transform_spec_metadatas_block(node.info)
+            spectype_attrs = _transform_spec_metadatas_block(
+                node.info,
+                doc_coll=doc_coll)
 
         return cls(
             title=title,
@@ -554,7 +578,9 @@ class ClcRichtextInlineNodeTemplate:
                 body=contained_content,
                 tag_wrappers=_derive_inlinenode_tag_wrappers(
                     cast(InlineNodeInfo, info), doc_coll=doc_coll),
-                spectype_attrs=_transform_spec_metadatas_inline(info),
+                spectype_attrs=_transform_spec_metadatas_inline(
+                    info,
+                    doc_coll=doc_coll),
                 plugin_attrs=plugin_attrs,
                 plugin_widgets=plugin_widgets)
 
