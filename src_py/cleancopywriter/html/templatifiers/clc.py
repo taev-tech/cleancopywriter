@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import typing
+from collections.abc import Sequence
+from dataclasses import dataclass
 from dataclasses import field
 from functools import partial
 from html import escape as html_escape
@@ -44,13 +46,13 @@ from templatey import Var
 from templatey.prebaked.configs import html
 from templatey.prebaked.loaders import INLINE_TEMPLATE_LOADER
 from templatey.templates import FieldConfig
+from templatey.templates import InjectedValue
 
 from cleancopywriter.html.generic_templates import HtmlAttr
 from cleancopywriter.html.generic_templates import HtmlGenericElement
 from cleancopywriter.html.generic_templates import HtmlTemplate
 from cleancopywriter.html.generic_templates import PlaintextTemplate
 from cleancopywriter.html.generic_templates import heading_factory
-from cleancopywriter.html.generic_templates import link_factory
 
 if typing.TYPE_CHECKING:
     from cleancopywriter.html.documents import HtmlDocumentCollection
@@ -213,12 +215,14 @@ class ClcMetadataTemplate:
                     __header__="\\n<clc-metadatas>",
                     __prefix__="\\n",
                     __footer__="\\n</clc-metadatas>"}
-                <clc-header>{slot.title}</clc-header>
+                {@wrap_node_start(data.tag_wrappers)
+                }<clc-header>{slot.title}</clc-header>
                 {slot.body}{
                 slot.plugin_widgets:
                     __header__="\\n<clc-widgets>",
                     __prefix__="\\n",
-                    __footer__="\\n</clc-widgets>"}
+                    __footer__="\\n</clc-widgets>"}{
+                @wrap_node_end(data.tag_wrappers)}
             </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextBlocknodeTemplate:
@@ -227,6 +231,9 @@ class ClcRichtextBlocknodeTemplate:
     nodes.
     """
     tagname: Content[str] = field(kw_only=True, default='clc-block')
+    tag_wrappers: list[NodeContentTagWrapper] = field(
+        kw_only=True, default_factory=list)
+
     title: Slot[HtmlGenericElement]
     metadata: Slot[ClcMetadataTemplate]
     body: Slot[
@@ -360,12 +367,14 @@ class ClcEmbeddingPluginContentTemplate:
                     __header__="\\n<clc-metadatas>",
                     __prefix__="\\n",
                     __footer__="\\n</clc-metadatas>"}
-                <clc-header>{slot.title}</clc-header>
+                {@wrap_node_start(data.tag_wrappers)
+                }<clc-header>{slot.title}</clc-header>
                 {slot.embedding_content}{
                 slot.plugin_widgets:
                     __header__="\\n<clc-widgets>",
                     __prefix__="\\n",
-                    __footer__="\\n</clc-widgets>"}
+                    __footer__="\\n</clc-widgets>"}{
+                @wrap_node_end(data.tag_wrappers)}
             </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcEmbeddingBlocknodeTemplate:
@@ -374,6 +383,9 @@ class ClcEmbeddingBlocknodeTemplate:
     for richtext block nodes.
     """
     tagname: Content[str] = field(kw_only=True, default='clc-block')
+    tag_wrappers: list[NodeContentTagWrapper] = field(
+        kw_only=True, default_factory=list)
+
     title: Slot[HtmlGenericElement]
     metadata: Slot[ClcMetadataTemplate]
     embedding_content: Slot[
@@ -474,11 +486,13 @@ class ClcEmbeddingBlocknodeTemplate:
                     __header__="\\n<clc-metadatas>",
                     __prefix__="\\n",
                     __footer__="\\n</clc-metadatas>"}
-                {slot.body}{
+                {@wrap_node_start(data.tag_wrappers)
+                }{slot.body}{
                 slot.plugin_widgets:
                     __header__="\\n<clc-widgets>",
                     __prefix__="\\n",
-                    __footer__="\\n</clc-widgets>"}
+                    __footer__="\\n</clc-widgets>"}{
+                @wrap_node_end(data.tag_wrappers)}
             </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextInlineNodeTemplate:
@@ -488,6 +502,9 @@ class ClcRichtextInlineNodeTemplate:
     they aren't valid within ``<h#>`` tags).
     """
     tagname: Content[str] = field(kw_only=True, default='clc-context')
+    tag_wrappers: list[NodeContentTagWrapper] = field(
+        kw_only=True, default_factory=list)
+
     metadata: Slot[ClcMetadataTemplate]
     body: Slot[HtmlTemplate | ClcRichtextInlineNodeTemplate]  # type: ignore
 
@@ -536,10 +553,9 @@ class ClcRichtextInlineNodeTemplate:
             return cls(
                 metadata=ClcMetadataTemplate.from_ast_node(
                     node.info, doc_coll) if node.info is not None else [],
-                body=_wrap_in_richtext_context(
-                    contained_content,
-                    cast(InlineNodeInfo, info),
-                    doc_coll=doc_coll),
+                body=contained_content,
+                tag_wrappers=_derive_inline_node_tag_wrappers(
+                    cast(InlineNodeInfo, info), doc_coll=doc_coll),
                 spectype_attrs=_transform_spec_metadatas_inline(info),
                 plugin_attrs=plugin_attrs,
                 plugin_widgets=plugin_widgets)
@@ -680,10 +696,58 @@ class ClcAnnotationTemplate:
         return cls(text=node.content)
 
 
+def wrap_node_start(
+        wrappers: Sequence[NodeContentTagWrapper]
+        ) -> list[TemplateClassInstance | InjectedValue | str]:
+    """Use this to inject any required start tags at the beginning of
+    node content.
+
+    TODO: replace this (and wrap_node_end) with a property-based slot.
+    """
+    retval: list[TemplateClassInstance | InjectedValue | str] = []
+    for wrapper in wrappers:
+        retval.append(InjectedValue('<', use_variable_escaper=False))
+        retval.append(wrapper.tag)
+
+        for attr in wrapper.attrs:
+            retval.append(' ')
+            retval.append(attr)
+
+        retval.append(InjectedValue('>', use_variable_escaper=False))
+
+    return retval
+
+
+def wrap_node_end(
+        wrappers: Sequence[NodeContentTagWrapper]
+        ) -> list[TemplateClassInstance | InjectedValue | str]:
+    """Use this to inject any required end tags at the end of node
+    content.
+    """
+    retval: list[TemplateClassInstance | InjectedValue | str] = []
+    for wrapper in reversed(wrappers):
+        retval.append(InjectedValue('</', use_variable_escaper=False))
+        retval.append(wrapper.tag)
+        retval.append(InjectedValue('>', use_variable_escaper=False))
+
+    return retval
+
+
+@dataclass(slots=True, frozen=True)
+class NodeContentTagWrapper:
+    """Node body tag wrappers are used to wrap the content of a
+    particular node -- ie, its header and body -- with a different
+    html tag.
+    """
+    tag: str
+    attrs: Sequence[HtmlAttr]
+
+
 def formatting_factory(
         spectype: InlineFormatting,
-        body: list[HtmlTemplate | ClcRichtextInlineNodeTemplate]
-        ) -> HtmlGenericElement:
+        ) -> NodeContentTagWrapper:
+    """Converts a formatting spectype into a ``NodeContentTagWrapper``.
+    """
     if spectype is InlineFormatting.PRE:
         tag = 'code'
         attrs = [HtmlAttr(key='class', value=INLINE_PRE_CLASSNAME)]
@@ -712,34 +776,29 @@ def formatting_factory(
         raise TypeError(
             'Invalid spectype for inline formatting!', spectype)
 
-    return HtmlGenericElement(
-        tag=tag,
-        attrs=attrs,
-        body=body)
+    return NodeContentTagWrapper(tag, attrs)
 
 
-def _wrap_in_richtext_context(
-        contained_content: list[HtmlTemplate | ClcRichtextInlineNodeTemplate],
+def _derive_inline_node_tag_wrappers(
         info: InlineNodeInfo,
         *,
         doc_coll: HtmlDocumentCollection
-        ) -> list[HtmlTemplate | ClcRichtextInlineNodeTemplate]:
-    if info.formatting is not None:
-        contained_content = [formatting_factory(
-            info.formatting,
-            contained_content)]
+        ) -> list[NodeContentTagWrapper]:
+    wrappers: list[NodeContentTagWrapper] = []
 
-    if info.target is None:
-        return contained_content
-    else:
+    if info.target is not None:
         if isinstance(info.target, StrDataType):
-            href = info.target.value
+            href = html_escape(info.target.value, quote=True)
         else:
             href = doc_coll.target_resolver(info.target)
 
-        return [link_factory(
-            href=href,
-            body=contained_content)]  # type: ignore
+        wrappers.append(
+            NodeContentTagWrapper('a', [HtmlAttr('href', href)]))
+
+    if info.formatting is not None:
+        wrappers.append(formatting_factory(info.formatting))
+
+    return wrappers
 
 
 def _apply_plugins[T: ASTNode](

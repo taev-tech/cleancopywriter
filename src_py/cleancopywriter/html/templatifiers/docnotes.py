@@ -1070,10 +1070,13 @@ def literal_value_factory(
 
         return CrossrefSummaryTemplate.from_crossref(value)
 
+    fmt_wrapper = formatting_factory(spectype=InlineFormatting.PRE)
     return FallbackContainerTemplate(
-        wraps=[formatting_factory(
-            spectype=InlineFormatting.PRE,
-            body=[PlaintextTemplate(repr(value))])])
+        wraps=[
+            HtmlGenericElement(
+                tag=fmt_wrapper.tag,
+                attrs=fmt_wrapper.attrs,
+                body=[PlaintextTemplate(repr(value))])])
 
 
 # This was running into pyright bugs when being used as a template class;
