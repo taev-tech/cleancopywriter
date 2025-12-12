@@ -76,7 +76,8 @@ DATATYPE_NAMES = {
 
 
 def _transform_spec_metadatas_block(
-        value: BlockNodeInfo
+        value: BlockNodeInfo,
+        doc_coll: HtmlDocumentCollection
         ) -> list[HtmlAttr]:
     retval: list[HtmlAttr] = []
     for enum_member in BlockMetadataMagic:
@@ -95,17 +96,6 @@ def _transform_spec_metadatas_block(
                 coerced_fieldname = fieldname
                 coerced_field_value = field_value.name.lower()
 
-            elif isinstance(
-                field_value,
-                MentionDataType
-                | TagDataType
-                | VariableDataType
-                | ReferenceDataType
-            ):
-                raise NotImplementedError(
-                    'Non-string link targets not yet supported for spectype '
-                    + 'metadata', fieldname)
-
             else:
                 if fieldname == 'embed':
                     coerced_fieldname = 'embedding'
@@ -114,8 +104,17 @@ def _transform_spec_metadatas_block(
                 else:
                     coerced_fieldname = fieldname.replace('_', '-')
 
-                coerced_field_value = html_escape(
-                    field_value.value, quote=True)
+                if isinstance(
+                    field_value,
+                    MentionDataType
+                    | TagDataType
+                    | VariableDataType
+                    | ReferenceDataType
+                ):
+                    coerced_field_value = doc_coll.target_resolver(field_value)
+                else:
+                    coerced_field_value = html_escape(
+                        field_value.value, quote=True)
 
             retval.append(HtmlAttr(coerced_fieldname, coerced_field_value))
 
@@ -124,7 +123,8 @@ def _transform_spec_metadatas_block(
 
 
 def _transform_spec_metadatas_inline(
-        value: InlineNodeInfo
+        value: InlineNodeInfo,
+        doc_coll: HtmlDocumentCollection
         ) -> list[HtmlAttr]:
     retval: list[HtmlAttr] = []
     for enum_member in InlineMetadataMagic:
@@ -132,7 +132,6 @@ def _transform_spec_metadatas_inline(
 
         # Skip these because they're handled by the actual processing code
         if fieldname in {
-            'target',
             'formatting',
             'sugared',
             'semantic_modifiers',
@@ -141,6 +140,11 @@ def _transform_spec_metadatas_inline(
 
         field_value = getattr(value, fieldname)
         if field_value is not None:
+            if fieldname == 'style_modifiers':
+                coerced_fieldname = 'class'
+            else:
+                coerced_fieldname = fieldname.replace('_', '-')
+
             if isinstance(
                 field_value,
                 MentionDataType
@@ -148,15 +152,8 @@ def _transform_spec_metadatas_inline(
                 | VariableDataType
                 | ReferenceDataType
             ):
-                raise NotImplementedError(
-                    'Non-string link targets not yet supported for spectype '
-                    + 'metadata', fieldname)
+                coerced_field_value = doc_coll.target_resolver(field_value)
             else:
-                if fieldname == 'style_modifiers':
-                    coerced_fieldname = 'class'
-                else:
-                    coerced_fieldname = fieldname.replace('_', '-')
-
                 coerced_field_value = html_escape(
                     field_value.value, quote=True)
 
@@ -170,7 +167,8 @@ def _transform_spec_metadatas_inline(
     html,
     TemplateResourceConfig(
         '<clc-metadata type="{content.type_}" key="{var.key}" '
-        + 'value="{var.value}"></clc-metadata>',
+        + 'value="{var.value}"{slot.extra_attrs: __prefix__=" "}>'
+        + '</clc-metadata>',
         loader=INLINE_TEMPLATE_LOADER))
 class ClcMetadataTemplate:
     """This template is used for individual metadata key/value pairs.
@@ -178,6 +176,7 @@ class ClcMetadataTemplate:
     type_: Content[str]
     key: Var[object]
     value: Var[object]
+    extra_attrs: Slot[HtmlAttr] = field(default_factory=tuple)
 
     @classmethod
     def from_ast_node(
@@ -196,10 +195,26 @@ class ClcMetadataTemplate:
                     value=''))
 
             else:
+                # And special-case the dedicated reference types, so that they
+                # can be given both the raw value and the resolved one.
+                if isinstance(
+                    datatyped_value,
+                    MentionDataType
+                    | TagDataType
+                    | VariableDataType
+                    | ReferenceDataType
+                ):
+                    href = doc_coll.target_resolver(datatyped_value)
+                    extra_attrs = [HtmlAttr('href', href)]
+
+                else:
+                    extra_attrs = ()
+
                 retval.append(cls(
                     type_=DATATYPE_NAMES[type(datatyped_value)],
                     key=key,
-                    value=html_escape(str(datatyped_value.value), quote=True)))
+                    value=html_escape(str(datatyped_value.value), quote=True),
+                    extra_attrs=extra_attrs))
 
         return retval
 
@@ -317,7 +332,9 @@ class ClcRichtextBlocknodeTemplate:
             tag_wrappers = _derive_blocknode_tag_wrappers(
                 cast(BlockNodeInfo, node.info), doc_coll=doc_coll)
 
-            spectype_attrs = _transform_spec_metadatas_block(node.info)
+            spectype_attrs = _transform_spec_metadatas_block(
+                node.info,
+                doc_coll=doc_coll)
 
         return cls(
             title=title,
@@ -466,7 +483,9 @@ class ClcEmbeddingBlocknodeTemplate:
             tag_wrappers = _derive_blocknode_tag_wrappers(
                 cast(BlockNodeInfo, node.info), doc_coll=doc_coll)
 
-            spectype_attrs = _transform_spec_metadatas_block(node.info)
+            spectype_attrs = _transform_spec_metadatas_block(
+                node.info,
+                doc_coll=doc_coll)
 
         return cls(
             title=title,
@@ -554,7 +573,9 @@ class ClcRichtextInlineNodeTemplate:
                 body=contained_content,
                 tag_wrappers=_derive_inlinenode_tag_wrappers(
                     cast(InlineNodeInfo, info), doc_coll=doc_coll),
-                spectype_attrs=_transform_spec_metadatas_inline(info),
+                spectype_attrs=_transform_spec_metadatas_inline(
+                    info,
+                    doc_coll=doc_coll),
                 plugin_attrs=plugin_attrs,
                 plugin_widgets=plugin_widgets)
 
