@@ -208,15 +208,17 @@ class ClcMetadataTemplate:
         dedent('''\
             <{content.tagname} type="richtext"{
                     slot.spectype_attrs: __prefix__=' '}{
-                    slot.plugin_attrs: __prefix__=' '}>
-                <clc-header>
-                    {slot.title}
-                    <clc-metadatas>
-                        {slot.metadata}
-                    </clc-metadatas>
-                </clc-header>
-                {slot.body}
-                <clc-widgets>{slot.plugin_widgets}</clc-widgets>
+                    slot.plugin_attrs: __prefix__=' '}>{
+                slot.metadata:
+                    __header__="\\n<clc-metadatas>",
+                    __prefix__="\\n",
+                    __footer__="\\n</clc-metadatas>"}
+                <clc-header>{slot.title}</clc-header>
+                {slot.body}{
+                slot.plugin_widgets:
+                    __header__="\\n<clc-widgets>",
+                    __prefix__="\\n",
+                    __footer__="\\n</clc-widgets>"}
             </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextBlocknodeTemplate:
@@ -353,15 +355,17 @@ class ClcEmbeddingPluginContentTemplate:
         dedent('''\
             <{content.tagname} type="embedding"{
                     slot.spectype_attrs: __prefix__=' '}{
-                    slot.plugin_attrs: __prefix__=' '}>
-                <clc-header>
-                    {slot.title}
-                    <clc-metadatas>
-                        {slot.metadata}
-                    </clc-metadatas>
-                </clc-header>
-                {slot.embedding_content}
-                <clc-widgets>{slot.plugin_widgets}</clc-widgets>
+                    slot.plugin_attrs: __prefix__=' '}>{
+                slot.metadata:
+                    __header__="\\n<clc-metadatas>",
+                    __prefix__="\\n",
+                    __footer__="\\n</clc-metadatas>"}
+                <clc-header>{slot.title}</clc-header>
+                {slot.embedding_content}{
+                slot.plugin_widgets:
+                    __header__="\\n<clc-widgets>",
+                    __prefix__="\\n",
+                    __footer__="\\n</clc-widgets>"}
             </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcEmbeddingBlocknodeTemplate:
@@ -465,14 +469,16 @@ class ClcEmbeddingBlocknodeTemplate:
     TemplateResourceConfig(
         dedent('''\
             <{content.tagname}{slot.spectype_attrs: __prefix__=' '}{
-                    slot.plugin_attrs: __prefix__=' '}>
-                <clc-header>
-                    <clc-metadatas>
-                        {slot.metadata}
-                    </clc-metadatas>
-                </clc-header>
-                {slot.body}
-                <clc-widgets>{slot.plugin_widgets}</clc-widgets>
+                    slot.plugin_attrs: __prefix__=' '}>{
+                slot.metadata:
+                    __header__="\\n<clc-metadatas>",
+                    __prefix__="\\n",
+                    __footer__="\\n</clc-metadatas>"}
+                {slot.body}{
+                slot.plugin_widgets:
+                    __header__="\\n<clc-widgets>",
+                    __prefix__="\\n",
+                    __footer__="\\n</clc-widgets>"}
             </{content.tagname}>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class ClcRichtextInlineNodeTemplate:
