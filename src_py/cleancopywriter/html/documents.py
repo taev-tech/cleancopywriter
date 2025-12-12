@@ -21,9 +21,13 @@ from cleancopy.ast import Document as ClcDocument
 from cleancopy.ast import EmbeddingBlockNode
 from cleancopy.ast import List_
 from cleancopy.ast import ListItem
+from cleancopy.ast import MentionDataType
 from cleancopy.ast import Paragraph
+from cleancopy.ast import ReferenceDataType
 from cleancopy.ast import RichtextBlockNode
 from cleancopy.ast import RichtextInlineNode
+from cleancopy.ast import TagDataType
+from cleancopy.ast import VariableDataType
 from docnote import Note
 from docnote_extract import SummaryTreeNode
 from templatey._types import TemplateClassInstance
@@ -455,16 +459,31 @@ def _apply_xform_annotation[T](
     return new_node
 
 
+def _fragment_target_resolver(
+        target:
+            MentionDataType
+            | TagDataType
+            | VariableDataType
+            | ReferenceDataType
+        ) -> str:
+    """This is a fallback target resolver, used in quickrender, which
+    simply turns the target into a fragment string describing the
+    target.
+    """
+    return f'#{target=!r}'
+
+
 def quickrender(
         clc_text: str,
-        plugin_manager: PluginManager | None = None
+        plugin_manager: PluginManager | None = None,
+        target_resolver: LinkTargetResolver | None = None
         ) -> str:
     """This is a utility function, mostly intended for manual
     debugging and repl tomfoolery, that renders the passed cleancopy
     text into HTML.
     """
-    def target_resolver(*args, **kwargs) -> str:
-        return '#'
+    if target_resolver is None:
+        target_resolver = _fragment_target_resolver
 
     if plugin_manager is None:
         doc_coll = HtmlDocumentCollection(target_resolver=target_resolver)
