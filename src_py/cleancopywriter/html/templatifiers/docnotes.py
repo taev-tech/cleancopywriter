@@ -58,7 +58,7 @@ from cleancopywriter.html.generic_templates import HtmlTemplate
 from cleancopywriter.html.generic_templates import PlaintextTemplate
 from cleancopywriter.html.templatifiers.clc import INLINE_PRE_CLASSNAME
 from cleancopywriter.html.templatifiers.clc import ClcRichtextBlocknodeTemplate
-from cleancopywriter.html.templatifiers.clc import formatting_factory
+from cleancopywriter.html.templatifiers.clc import formatting_factory_inline
 
 if typing.TYPE_CHECKING:
     from cleancopywriter.html.documents import HtmlDocumentCollection
@@ -1070,10 +1070,13 @@ def literal_value_factory(
 
         return CrossrefSummaryTemplate.from_crossref(value)
 
+    fmt_wrapper = formatting_factory_inline(spectype=InlineFormatting.PRE)
     return FallbackContainerTemplate(
-        wraps=[formatting_factory(
-            spectype=InlineFormatting.PRE,
-            body=[PlaintextTemplate(repr(value))])])
+        wraps=[
+            HtmlGenericElement(
+                tag=fmt_wrapper.tag,
+                attrs=fmt_wrapper.attrs,
+                body=[PlaintextTemplate(repr(value))])])
 
 
 # This was running into pyright bugs when being used as a template class;

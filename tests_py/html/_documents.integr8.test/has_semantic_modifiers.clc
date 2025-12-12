@@ -1,5 +1,5 @@
 > Nodes can modify their html tags via semantic modifiers
-__semantic_modifiers__: "clc-block-sweeney"
+__semantic_modifiers__: "test-sweeney"
     there's a hole in the world like a great black pit
 
-[[and it's filled with people who are]<__semantic_modifiers__: "clc-context-incomplete">]
+[[and it's filled with people who are]<__semantic_modifiers__: "test-incomplete">]

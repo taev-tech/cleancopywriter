@@ -37,6 +37,8 @@ from cleancopywriter._types import LinkTargetResolver
 from cleancopywriter.html.plugin_types import PluginManager
 from cleancopywriter.html.prebaked.plugins import SimplePluginManager
 from cleancopywriter.html.templatifiers.clc import ClcRichtextBlocknodeTemplate
+from cleancopywriter.html.templatifiers.clc import wrap_node_end
+from cleancopywriter.html.templatifiers.clc import wrap_node_start
 from cleancopywriter.html.templatifiers.docnotes import ModuleSummaryTemplate
 
 
@@ -474,5 +476,7 @@ def quickrender(
     ast_doc = doc_coll.preprocess(clc_text=clc_text)
     template = ClcRichtextBlocknodeTemplate.from_document(
         ast_doc, doc_coll=doc_coll)
-    render_env = RenderEnvironment(InlineStringTemplateLoader())
+    render_env = RenderEnvironment(
+        InlineStringTemplateLoader(),
+        [wrap_node_end, wrap_node_start])
     return render_env.render_sync(template)
