@@ -93,18 +93,18 @@ docnote-class-metaclass:has(> *)::before {
     content: "metaclass";
 }
 
-docnote-class-bases-container {
+docnote-class-bases-wrapper {
     flex-wrap: wrap;
     display: inline flex;
     flex-direction: row;
 }
 
-docnote-class-bases-container::before {
+docnote-class-bases-wrapper::before {
     align-self: flex-start;
     content: "(";
 }
 
-docnote-class-bases-container::after {
+docnote-class-bases-wrapper::after {
     align-self: flex-end;
     content: ")";
 }
@@ -162,7 +162,7 @@ docnote-callable-signature-param:first-of-type {
     padding-top: 0;
 }
 
-docnote-normtype-params-container {
+docnote-normtype-params-wrapper {
     flex-wrap: wrap;
     display: inline flex;
     flex-direction: row;
@@ -170,16 +170,16 @@ docnote-normtype-params-container {
 
 /* Explicitly call out empty generic because you might have a callable with
 no args */
-docnote-normtype-emptygeneric > docnote-normtype-params-container::before,
-docnote-normtype-params-container:has(> docnote-normtype-params > *)::before {
+docnote-normtype-emptygeneric > docnote-normtype-params-wrapper::before,
+docnote-normtype-params-wrapper:has(> docnote-normtype-params > *)::before {
     align-self: flex-start;
     content: "[";
 }
 
 /* Explicitly call out empty generic because you might have a callable with
 no args */
-docnote-normtype-emptygeneric > docnote-normtype-params-container::after,
-docnote-normtype-params-container:has(> docnote-normtype-params > *)::after {
+docnote-normtype-emptygeneric > docnote-normtype-params-wrapper::after,
+docnote-normtype-params-wrapper:has(> docnote-normtype-params > *)::after {
     align-self: flex-end;
     content: "]";
 }
@@ -260,17 +260,17 @@ docnote-notes {
     padding-left: 4ch;
 }
 
-docnote-normtype-union-container::before {
+docnote-normtype-union-wrapper::before {
     align-self: flex-start;
     content: "Union[";
 }
 
-docnote-normtype-union-container::after {
+docnote-normtype-union-wrapper::after {
     align-self: flex-end;
     content: "]";
 }
 
-docnote-normtype-union-container {
+docnote-normtype-union-wrapper {
     flex-wrap: wrap;
     display: inline flex;
     flex-direction: row;
