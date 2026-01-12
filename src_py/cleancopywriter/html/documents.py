@@ -30,20 +30,20 @@ from cleancopy.ast import TagDataType
 from cleancopy.ast import VariableDataType
 from docnote import Note
 from docnote_extract import SummaryTreeNode
-from templatey._types import TemplateClassInstance
+from templatey import TemplateClassInstance
 from templatey.environments import RenderEnvironment
 from templatey.prebaked.loaders import InlineStringTemplateLoader
 
-from cleancopywriter._types import ClcTreeTransformer
-from cleancopywriter._types import DocumentBase
-from cleancopywriter._types import DocumentID
-from cleancopywriter._types import LinkTargetResolver
 from cleancopywriter.html.plugin_types import PluginManager
 from cleancopywriter.html.prebaked.plugins import SimplePluginManager
 from cleancopywriter.html.templatifiers.clc import ClcRichtextBlocknodeTemplate
 from cleancopywriter.html.templatifiers.clc import wrap_node_end
 from cleancopywriter.html.templatifiers.clc import wrap_node_start
 from cleancopywriter.html.templatifiers.docnotes import ModuleSummaryTemplate
+from cleancopywriter.types import ClcTreeTransformer
+from cleancopywriter.types import DocumentBase
+from cleancopywriter.types import DocumentID
+from cleancopywriter.types import LinkTargetResolver
 
 
 @dataclass(slots=True)
