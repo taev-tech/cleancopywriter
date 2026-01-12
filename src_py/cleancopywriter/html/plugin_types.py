@@ -9,7 +9,7 @@ from cleancopy.ast import ASTNode
 from cleancopy.ast import EmbeddingBlockNode
 from docnote import Note
 from docnote_extract.summaries import SummaryBase
-from templatey._types import TemplateClassInstance
+from templatey import TemplateClassInstance
 
 from cleancopywriter.html.generic_templates import HtmlAttr
 

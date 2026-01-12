@@ -45,9 +45,9 @@ from docnote_extract.summaries import VariableSummary
 from templatey import Content
 from templatey import DynamicClassSlot
 from templatey import Slot
+from templatey import TemplateClassInstance
 from templatey import TemplateResourceConfig
 from templatey import Var
-from templatey._types import TemplateClassInstance
 from templatey.prebaked.configs import html
 from templatey.prebaked.loaders import INLINE_TEMPLATE_LOADER
 from templatey.templates import FieldConfig
