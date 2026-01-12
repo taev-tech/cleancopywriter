@@ -139,13 +139,15 @@ def _resolve_link_target(
 
 
 def _transform_clc_node(
-        node: ASTNode,
+        node: ASTNode | None,
         *,
         context: SummaryMetadataProtocol | None = None
-        ) -> ASTNode:
+        ) -> ASTNode | None:
     if (
         # Makes typechecking happy
         context is None
+        # We don't do anything with deleted nodes
+        or node is None
         # Defensive in case we widen the supported contexts
         or not hasattr(context, 'crossref_namespace')
         or not isinstance(node, RichtextInlineNode)
