@@ -72,9 +72,9 @@ if typing.TYPE_CHECKING:
         # of a literal) and therefore there's no way to distinguish between
         # them
         dedent('''\
-            <docnote-fallback-container>
+            <docnote-fallback-wrapper>
                 {slot.wraps}
-            </docnote-fallback-container>'''),
+            </docnote-fallback-wrapper>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class FallbackContainerTemplate:
     """Fallback templates are used for docnote things we haven't fully
@@ -218,13 +218,13 @@ class VariableSummaryTemplate:
                     <docnote-class-metaclass>
                         {slot.metaclass}
                     </docnote-class-metaclass>
-                    <docnote-class-bases-container>
+                    <docnote-class-bases-wrapper>
                         <docnote-class-bases role="list">
                             {slot.bases:
                             __prefix__='<docnote-class-base role="listitem">',
                             __suffix__='</docnote-class-base>'}
                         </docnote-class-bases>
-                    </docnote-class-bases-container>
+                    </docnote-class-bases-wrapper>
                     <docnote-docstring obj-type="class">
                         {slot.docstring}
                     </docnote-docstring>
@@ -630,11 +630,11 @@ class TypespecTemplate:
         # may or may not be list items (because they can also be used outside
         # of a union) and therefore there's no way to distinguish between them
         dedent('''\
-            <docnote-normtype-union-container>
+            <docnote-normtype-union-wrapper>
                 <docnote-normtype-union>
                     {slot.normtypes}
                 </docnote-normtype-union>
-            </docnote-normtype-union-container>'''),
+            </docnote-normtype-union-wrapper>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class NormalizedUnionTypeTemplate:
     normtypes: Slot[NormalizedTypeTemplate]
@@ -648,11 +648,11 @@ class NormalizedUnionTypeTemplate:
                 <docnote-normtype-concrete-primary>
                     {slot.primary}
                 </docnote-normtype-concrete-primary>
-                <docnote-normtype-params-container>
+                <docnote-normtype-params-wrapper>
                     <docnote-normtype-params>
                         {slot.params}
                     </docnote-normtype-params>
-                </docnote-normtype-params-container>
+                </docnote-normtype-params-wrapper>
             </docnote-normtype-concrete>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class NormalizedConcreteTypeTemplate:
@@ -665,11 +665,11 @@ class NormalizedConcreteTypeTemplate:
     TemplateResourceConfig(
         dedent('''\
             <docnote-normtype-emptygeneric>
-                <docnote-normtype-params-container>
+                <docnote-normtype-params-wrapper>
                     <docnote-normtype-params>
                         {slot.params}
                     </docnote-normtype-params>
-                </docnote-normtype-params-container>
+                </docnote-normtype-params-wrapper>
             </docnote-normtype-emptygeneric>'''),
         loader=INLINE_TEMPLATE_LOADER))
 class NormalizedEmptyGenericTypeTemplate:
@@ -708,10 +708,10 @@ class NormalizedLiteralTypeTemplate:
     html,
     TemplateResourceConfig(
         dedent('''\
-            <abbr title="{var.qualname}{var.traversals}">
+            <abbr title="{var.qualname}{var.traversals}" data-docnote-component="crossref">
                 {slot.crossref_target}
             </abbr>
-            '''),
+            '''),  # noqa: E501
         loader=INLINE_TEMPLATE_LOADER))
 class CrossrefSummaryTemplate:
     qualname: Var[str]
