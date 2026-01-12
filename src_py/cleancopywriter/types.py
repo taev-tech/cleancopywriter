@@ -46,8 +46,8 @@ class ClcTreeTransformer[T](Protocol):
 
     def __call__(
             self,
-            node: ASTNode,
+            node: ASTNode | None,
             *,
             context: T | None = None
-            ) -> ASTNode:
+            ) -> ASTNode | None:
         ...

@@ -224,6 +224,9 @@ def apply_transformers[T](
         return document
 
     transformed = _apply_transformers(document, transformers, context)
+    # TODO: when we transition to having documents be just the root node,
+    # this will need to update to allow for a ``None`` result, resulting in
+    # an empty root node
     if not isinstance(transformed, ClcDocument):
         raise TypeError(
             'Invalid transformation result!', document, transformed)
@@ -236,7 +239,7 @@ def _apply_transformers[T](
         node: ASTNode,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
+        ) -> ASTNode | None:
     """This actually implements the transformations.
     """
     return node
@@ -247,7 +250,7 @@ def _apply_xform_document[T](
         node: ClcDocument,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
+        ) -> ASTNode | None:
     if node.title is None:
         new_title = None
     else:
@@ -260,6 +263,13 @@ def _apply_xform_document[T](
                 'Invalid transformation result!', node.title, new_title)
 
     new_root = _apply_transformers(node.root, transformers, context)
+    if new_root is None:
+        new_root = RichtextBlockNode(
+            title=None,
+            info=None,
+            depth=0,
+            content=[])
+
     if not isinstance(new_root, RichtextBlockNode):
         raise TypeError(
             'Invalid transformation result!', node.root, new_root)
@@ -279,7 +289,7 @@ def _apply_xform_richtextblocknode[T](
         node: RichtextBlockNode,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
+        ) -> ASTNode | None:
     if node.title is None:
         new_title = None
     else:
@@ -291,9 +301,10 @@ def _apply_xform_richtextblocknode[T](
             raise TypeError(
                 'Invalid transformation result!', node.title, new_title)
 
-    new_content = [
-        _apply_transformers(subnode, transformers, context)
-        for subnode in node.content]
+    new_content = list(filter(
+        _is_not_none, (
+            _apply_transformers(subnode, transformers, context)
+            for subnode in node.content)))
     if not all(
         isinstance(new_subnode, Paragraph | BlockNode)
         for new_subnode in new_content
@@ -318,7 +329,7 @@ def _apply_xform_embeddingblocknode[T](
         node: EmbeddingBlockNode,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
+        ) -> ASTNode | None:
     if node.title is None:
         new_title = None
     else:
@@ -346,10 +357,11 @@ def _apply_xform_paragraph[T](
         node: Paragraph,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
-    new_content = [
-        _apply_transformers(subnode, transformers, context)
-        for subnode in node.content]
+        ) -> ASTNode | None:
+    new_content = list(filter(
+        _is_not_none, (
+            _apply_transformers(subnode, transformers, context)
+            for subnode in node.content)))
     if not all(
         isinstance(new_subnode, RichtextInlineNode | List_ | Annotation)
         for new_subnode in new_content
@@ -372,10 +384,11 @@ def _apply_xform_list[T](
         node: List_,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
-    new_content = [
-        _apply_transformers(subnode, transformers, context)
-        for subnode in node.content]
+        ) -> ASTNode | None:
+    new_content = list(filter(
+        _is_not_none, (
+            _apply_transformers(subnode, transformers, context)
+            for subnode in node.content)))
     if not all(
         isinstance(new_subnode, ListItem)
         for new_subnode in new_content
@@ -398,10 +411,11 @@ def _apply_xform_listitem[T](
         node: ListItem,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
-    new_content = [
-        _apply_transformers(subnode, transformers, context)
-        for subnode in node.content]
+        ) -> ASTNode | None:
+    new_content = list(filter(
+        _is_not_none, (
+            _apply_transformers(subnode, transformers, context)
+            for subnode in node.content)))
     if not all(
         isinstance(new_subnode, Paragraph)
         for new_subnode in new_content
@@ -424,10 +438,11 @@ def _apply_xform_richtextinlinenode[T](
         node: RichtextInlineNode,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
-    new_content = [
-        _apply_transformers(subnode, transformers, context)
-        for subnode in node.content]
+        ) -> ASTNode | None:
+    new_content = list(filter(
+        _is_not_none, (
+            _apply_transformers(subnode, transformers, context)
+            for subnode in node.content)))
     if not all(
         isinstance(new_subnode, str | RichtextInlineNode)
         for new_subnode in new_content
@@ -450,7 +465,7 @@ def _apply_xform_annotation[T](
         node: Annotation,
         transformers: Sequence[ClcTreeTransformer[T]],
         context: T | None
-        ) -> ASTNode:
+        ) -> ASTNode | None:
     new_node = Annotation(
         content=node.content)
     for transformer in transformers:
@@ -499,3 +514,7 @@ def quickrender(
         InlineStringTemplateLoader(),
         [wrap_node_end, wrap_node_start])
     return render_env.render_sync(template)
+
+
+def _is_not_none(transformed_node: ASTNode | None) -> bool:
+    return transformed_node is not None
